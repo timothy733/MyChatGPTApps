@@ -24,7 +24,6 @@
 
     <button id="clearBtn">Clear All</button>
 
-
     <table>
         <thead>
             <tr>
@@ -71,6 +70,10 @@
 
         // Add books to the table
         async function addBooksToTable(isbn) {
+            if (document.querySelector(`[data-isbn="${isbn}"]`)) {
+                return; // Prevent duplicate entries
+            }
+            
             let matchingBooks = isbnDataList.filter(book => book.isbn === isbn);
             
             if (matchingBooks.length === 0) {
