@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Recognition Flashcards</title>
+    <link rel="manifest" href="manifest.json">
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        img { width: auto; height: 350px; max-width: 100%; object-fit: contain; margin: 20px; }
+        #resultTable { margin-top: 20px; border-collapse: collapse; width: 50%; margin-left: auto; margin-right: auto; }
+        #resultTable th, #resultTable td { border: 1px solid black; padding: 8px; }
+        #controls { display: none; }
+    </style>
+</head>
+<body>
+    <h1>Face Recognition Flashcards</h1>
+    <input type="file" id="csvFile" accept=".csv" onchange="loadCSV(event)">
+    <br><br>
+    <div id="flashcard" style="display: none;">
+        <img id="faceImage" src="" alt="Face Photo">
+        <br>
+        <input type="text" id="nameInput" placeholder="Enter Name">
+        <br><br>
+    </div>
+    <div id="controls">
+        <button onclick="prevFace()" id="prevBtn">Previous</button>
+        <button onclick="nextFace()" id="nextBtn">Next</button>
+        <button id="submitBtn" onclick="submitAnswers()" style="display:none;">Submit</button>
+    </div>
+    
+    <table id="resultTable" style="display:none;">
+        <thead>
+            <tr>
+                <th>Your Answer</th>
+                <th>Correct Answer</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('service-worker.js')
+                .then(() => console.log('Service Worker Registered'))
+                .catch(error => console.log('Service Worker Registration Failed', error));
+        }
+
+        let faces = [];
+        let answers = [];
+        let currentIndex = 0;
+
+        function loadCSV(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const text = e.target.result;
+                const rows = text.split('\n')
+                                .map(row => row.split(','))
+                                .filter(row => row.length >= 2 && row[0] && row[1]); // Ensure valid rows
+                
+                faces = rows.map(row => ({ url: row[0].trim(), name: row[1].trim() }));
+                faces = faces.sort(() => Math.random() - 0.5); // Shuffle array
+                answers = new Array(faces.length).fill('');
+                currentIndex = 0;
+                
+                document.getElementById('flashcard').style.display = 'block';
+                document.getElementById('controls').style.display = 'block';
+                
+                displayFace();
+            };
+            reader.readAsText(file);
+        }
+
+        function displayFace() {
+            if (faces.length === 0) return;
+            document.getElementById('faceImage').src = faces[currentIndex].url;
+            document.getElementById('nameInput').value = answers[currentIndex] || '';
+            document.getElementById('nameInput').focus(); // Set focus on input field
+            document.getElementById('submitBtn').style.display = (currentIndex === faces.length - 1) ? 'inline-block' : 'none';
+            document.getElementById('nextBtn').style.display = (currentIndex === faces.length - 1) ? 'none' : 'inline-block';
+            document.getElementById('prevBtn').style.display = (currentIndex === 0) ? 'none' : 'inline-block';
+        }
+        
+        function nextFace() {
+            answers[currentIndex] = document.getElementById('nameInput').value;
+            if (currentIndex < faces.length - 1) {
+                currentIndex++;
+                displayFace();
+            }
+        }
+        
+        function prevFace() {
+            answers[currentIndex] = document.getElementById('nameInput').value;
+            if (currentIndex > 0) {
+                currentIndex--;
+                displayFace();
+            }
+        }
+        
+        function submitAnswers() {
+            answers[currentIndex] = document.getElementById('nameInput').value; // Capture last input before submitting
+            document.getElementById('resultTable').style.display = 'table';
+            let tbody = document.querySelector('#resultTable tbody');
+            tbody.innerHTML = '';
+            faces.forEach((face, index) => {
+                let row = tbody.insertRow();
+                row.insertCell(0).innerText = answers[index];
+                row.insertCell(1).innerText = face.name;
+            });
+        }
+    </script>
+</body>
+</html>
