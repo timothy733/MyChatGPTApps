@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Scan ISBN Lookup</title>
+    <script src="https://unpkg.com/@zxing/library@latest"></script>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        #video { width: 70vw; height: auto; border: 1px solid black; }
+        table { width: 80%; margin: auto; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid black; padding: 10px; text-align: left; }
+        img { max-width: 50px; }
+        #clearBtn { margin-top: 10px; padding: 10px 15px; background: red; color: white; border: none; cursor: pointer; }
+        #latestISBN { width: 200px; padding: 8px; margin: 10px 0; text-align: center; font-size: 16px; }
+    </style>
+</head>
+<body>
+    <h1>Scan ISBN Barcodes</h1>
+    <video id="video" playsinline></video>
+
+    <p>Latest Scanned ISBN:</p>
+    <input type="text" id="latestISBN" readonly>
+
+    <button id="clearBtn">Clear All</button>
+
+
+    <table>
+        <thead>
+            <tr>
+                <th>Cover</th>
+                <th>Title</th>
+                <th>Supplier</th>
+                <th>ISBN</th>
+                <th>Price</th>
+            </tr>
+        </thead>
+        <tbody id="bookList"></tbody>
+    </table>
+
+    <script>
+        const codeReader = new ZXing.BrowserBarcodeReader();
+        const videoElement = document.getElementById("video");
+        const bookList = document.getElementById("bookList");
+        const clearBtn = document.getElementById("clearBtn");
+        const latestISBNField = document.getElementById("latestISBN");
+
+        // Restore book data
+        const isbnDataList = [
+            { isbn: "9781952599095", title: "Christian Teacher as Office Bearer", supplier: "Canaanland", price: "20.00" },
+            { isbn: "9781952599095", title: "Christian Teacher as Office Bearer", supplier: "CERC", price: "15.00" },
+            { isbn: "9780851512280", title: "The Valley of Vision", supplier: "Behold Treasures", price: "28.00" },
+            { isbn: "9780851512280", title: "The Valley of Vision", supplier: "Canaanland", price: "32.00" }
+        ];
+
+        // Disable autofocus for iOS
+        navigator.mediaDevices.getUserMedia({ video: { focusMode: "manual" } }).catch(() => {});
+
+        // Barcode scanning logic
+        codeReader.decodeFromVideoDevice(undefined, videoElement, (result, err) => {
+            if (result) {
+                let isbn = result.text;
+                if (!isbn.startsWith("978")) return; // Only process ISBNs starting with "978"
+                
+                latestISBNField.value = isbn; // Show latest detected barcode
+                if (!document.querySelector(`[data-isbn="${isbn}"]`)) {
+                    addBooksToTable(isbn);
+                }
+            }
+        });
+
+        // Add books to the table
+        async function addBooksToTable(isbn) {
+            let matchingBooks = isbnDataList.filter(book => book.isbn === isbn);
+            
+            if (matchingBooks.length === 0) {
+                alert(`ISBN ${isbn} not found.`);
+                return;
+            }
+
+            let coverImage = await fetchBookCover(isbn);
+            
+            matchingBooks.forEach(({ title, supplier, price }) => {
+                bookList.innerHTML += `
+                    <tr data-isbn="${isbn}">
+                        <td><img src="${coverImage}" alt="Cover"></td>
+                        <td>${title}</td>
+                        <td>${supplier}</td>
+                        <td>${isbn}</td>
+                        <td>${price}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        // Fetch book cover image from Google Books API
+        async function fetchBookCover(isbn) {
+            try {
+                let response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
+                let data = await response.json();
+                return data.totalItems > 0 ? data.items[0].volumeInfo.imageLinks?.thumbnail || "" : "";
+            } catch (error) {
+                console.error("Error fetching book cover:", error);
+                return "";
+            }
+        }
+
+        // Clear all scanned rows
+        clearBtn.addEventListener("click", () => {
+            bookList.innerHTML = "";
+            latestISBNField.value = "";
+        });
+    </script>
+</body>
+</html>
