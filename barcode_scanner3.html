@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Scan ISBN Lookup</title>
+    <script src="https://unpkg.com/@zxing/library@latest"></script>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        #video { width: 70vw; height: auto; border: 1px solid black; }
+        table { width: 80%; margin: auto; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid black; padding: 10px; text-align: left; }
+        img { max-width: 50px; }
+        #clearBtn { margin-top: 10px; padding: 10px 15px; background: red; color: white; border: none; cursor: pointer; }
+        #latestISBN { width: 200px; padding: 8px; margin: 10px 0; text-align: center; font-size: 16px; }
+    </style>
+</head>
+<body>
+    <h1>Scan ISBN Barcodes</h1>
+    <video id="video" playsinline></video>
+
+    <p>Latest Scanned ISBN:</p>
+    <input type="text" id="latestISBN" readonly>
+
+    <button id="clearBtn">Clear All</button>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Cover</th>
+                <th>Title</th>
+                <th>Supplier</th>
+                <th>ISBN</th>
+                <th>Price</th>
+            </tr>
+        </thead>
+        <tbody id="bookList"></tbody>
+    </table>
+
+    <script>
+        const codeReader = new ZXing.BrowserBarcodeReader();
+        const videoElement = document.getElementById("video");
+        const bookList = document.getElementById("bookList");
+        const clearBtn = document.getElementById("clearBtn");
+        const latestISBNField = document.getElementById("latestISBN");
+
+        // Restore book data
+        const isbnDataList = [
+{ isbn: "9781921068911", title: "GGF - By God's Word Vol 1", supplier: "GGF", price: "68" },
+{ isbn: "9781921441462", title: "GGF - By God's Word Vol 2", supplier: "GGF", price: "68" },
+{ isbn: "9781783593682", title: "CER - Who Shall Ascend the Mountain of the Lord?", supplier: "CER", price: "69" },
+{ isbn: "9781844741403", title: "GGF - A Clear and Present Word", supplier: "GGF", price: "45" },
+{ isbn: "9780851119946", title: "CER - Marriage: Sex in the Service of God", supplier: "CER", price: "81" },
+{ isbn: "9781925041736", title: "CER - Leading Better Bible Studies", supplier: "CER", price: "52" },
+{ isbn: "9781629953779", title: "GGF - The Holy Trinity", supplier: "GGF", price: "109" },
+{ isbn: "9781433559877", title: "GGF - Reformed Systematic Theology, Volume 2", supplier: "GGF", price: "178" },
+{ isbn: "9781476755564", title: "CER - Generation Me", supplier: "CER", price: "71" },
+{ isbn: "9781501152016", title: "CER - iGen", supplier: "CER", price: "73" },
+{ isbn: "9781416575993", title: "CER - The Narcissism Epidemic", supplier: "CER", price: "67" },
+{ isbn: "9780851118918", title: "CER - The Work of Christ", supplier: "CER", price: "70" },
+{ isbn: "9780851112930", title: "GGF - At the Heart of the Universe", supplier: "GGF", price: "38" },
+{ isbn: "9781433514425", title: "CER - The Gospel and the Mind", supplier: "CER", price: "78" },
+{ isbn: "9780830852666", title: "CER - The Story Retold", supplier: "CER", price: "182" },
+{ isbn: "9781875245758", title: "CER - Just For Starters", supplier: "CER", price: "9" },
+{ isbn: "9781925424652", title: "CER - Two Ways to Live", supplier: "CER", price: "2.5" },
+{ isbn: "9786299950080", title: "CER - Right With God", supplier: "CER", price: "14" },
+{ isbn: "9781581347883", title: "CER - Fifty Reasons Why Jesus Came to Die", supplier: "CER", price: "36" },
+{ isbn: "9786299841173", title: "CER - Seeing and Savoring Jesus Christ", supplier: "CER", price: "14" },
+{ isbn: "9781433532337", title: "CER - Church Discipline", supplier: "CER", price: "32" },
+{ isbn: "9780785230755", title: "CER - Only Jesus", supplier: "CER", price: "40" },
+{ isbn: "9780825444456", title: "EVA - 40 QUESTIONS ABT CHURCH MEMBERSHIP & D", supplier: "EVA", price: "67" },
+{ isbn: "9781844740123", title: "EVA - ACCORDING TO PLAN", supplier: "EVA", price: "85" },
+{ isbn: "9781844748785", title: "EVA - THE MESSAGE OF THE CHURCH", supplier: "EVA", price: "62" },
+{ isbn: "9780310262671", title: "EVA - UNDERSTANDING FOUR VIEWS ON BAPTISM", supplier: "EVA", price: "43" },
+{ isbn: "9781844744862", title: "EVA - CHRISTIAN BELIEFS", supplier: "EVA", price: "48" },
+{ isbn: "9780851118932", title: "EVA - THE CHURCH", supplier: "EVA", price: "105" },
+{ isbn: "9781433501296", title: "EVA - DEATH BY LOVE", supplier: "EVA", price: "57" },
+{ isbn: "9781433573958", title: "EVA - DOCTRINE OF SCRIPTURE", supplier: "EVA", price: "65" },
+{ isbn: "9781587434341", title: "EVA - EMERGING GENDER IDENTITIES", supplier: "EVA", price: "80" },
+{ isbn: "9780764235825", title: "EVA - ENGAGING YOUR TEEN'S WORLD", supplier: "EVA", price: "55" },
+{ isbn: "9781433559112", title: "EVA - FAITHFUL THEOLOGY: AN INTRODUCTION", supplier: "EVA", price: "55" },
+{ isbn: "9781433523694", title: "EVA - FAMILY SHEPHERDS: MEN TO LEAD THEIR HO", supplier: "EVA", price: "54" },
+{ isbn: "9781876326999", title: "EVA - FATHERHOOD: WHAT IT IS & WHAT ITS FOR", supplier: "EVA", price: "34" },
+{ isbn: "9781908317858", title: "EVA - FROM CREATION TO NEW CREATION", supplier: "EVA", price: "38" },
+{ isbn: "9781433520099", title: "EVA - GIVE THEM GRACE", supplier: "EVA", price: "43" },
+{ isbn: "9781433569555", title: "EVA - GLORIFICATION: AN INTRODUCTION", supplier: "EVA", price: "62" },
+{ isbn: "9780801015663", title: "EVA - GOD LOVES SEX", supplier: "EVA", price: "54" },
+{ isbn: "9781844743704", title: "EVA - GOD'S BIG PICTURE LPB", supplier: "EVA", price: "51" },
+{ isbn: "9781925424515", title: "EVA - GOD'S GOOD DESIGN (2ND EDN)", supplier: "EVA", price: "65" },
+{ isbn: "9781908317070", title: "EVA - GOSPEL CENTRED FAMILY", supplier: "EVA", price: "34" },
+{ isbn: "9781908317582", title: "EVA - GOSPEL CENTRED MARRIAGE", supplier: "EVA", price: "37" },
+{ isbn: "9780310577874", title: "EVA - GOSPEL-DRIVEN CHURCH HB", supplier: "EVA", price: "74" },
+{ isbn: "9780830838752", title: "EVA - GREAT THEOLOGIANS, THE", supplier: "EVA", price: "79" },
+{ isbn: "9781433563843", title: "EVA - GROWING IN GODLINESS (TEEN GIRL'S GUIDE)", supplier: "EVA", price: "50" },
+{ isbn: "9781925424546", title: "EVA - GUIDANCE & THE VOICE OF GOD (2ND EDN)", supplier: "EVA", price: "56" },
+{ isbn: "9781433541353", title: "EVA - HOLE IN OUR HOLINESS", supplier: "EVA", price: "50" },
+{ isbn: "9781631469442", title: "EVA - HOW AND WHEN TO TELL YOUR KIDS ABT SEX", supplier: "EVA", price: "67" },
+{ isbn: "9781844744756", title: "EVA - JUST THE TWO OF US?", supplier: "EVA", price: "38" },
+{ isbn: "9781433575730", title: "EVA - JUSTIFICATION: AN INTRODUCTION", supplier: "EVA", price: "73" },
+{ isbn: "9789670341415", title: "EVA - KNOWING GOD", supplier: "EVA", price: "43" },
+{ isbn: "9781433528569", title: "EVA - MARRIAGE & THE FAMILY CONCISE EDN", supplier: "EVA", price: "44" },
+{ isbn: "9781433573101", title: "EVA - MARRIAGE: 6 GOSPEL COMMITMENTS HB", supplier: "EVA", price: "109" },
+{ isbn: "9781784984427", title: "EVA - NEED TO KNOW", supplier: "EVA", price: "47" },
+{ isbn: "9781433530333", title: "EVA - NO ORDINARY MARRIAGE", supplier: "EVA", price: "48" },
+{ isbn: "9781433555459", title: "EVA - NOT YET MARRIED", supplier: "EVA", price: "50" },
+{ isbn: "9781844741465", title: "EVA - ADOPTED INTO GOD'S FAMILY (NSBT)", supplier: "EVA", price: "72" },
+{ isbn: "9780310517375", title: "EVA - ORDINARY", supplier: "EVA", price: "57" },
+{ isbn: "9781433560613", title: "EVA - PARENTING WITH LOVING CORRECTION", supplier: "EVA", price: "41" },
+{ isbn: "9781433560972", title: "EVA - PARENTING WITH WORDS OF GRACE", supplier: "EVA", price: "50" },
+{ isbn: "9789670341392", title: "EVA - PARENTING: 14 GOSPEL PRINCIPLES/FAMILY", supplier: "EVA", price: "38" },
+{ isbn: "9781433560538", title: "EVA - REMEMBER DEATH", supplier: "EVA", price: "63" },
+{ isbn: "9781581346978", title: "EVA - SEX AND THE SUPREMACY OF CHRIST", supplier: "EVA", price: "67" },
+{ isbn: "9781433531118", title: "EVA - THIS MOMENTARY MARRIAGE TP", supplier: "EVA", price: "65" },
+{ isbn: "9781921441585", title: "EVA - TRELLIS AND THE VINE (3RD EDN)", supplier: "EVA", price: "65" },
+{ isbn: "9781844745180", title: "EVA - TRUE SPIRITUALITY", supplier: "EVA", price: "48" },
+{ isbn: "9780802419750", title: "EVA - WHAT IF JESUS WAS SERIOUS (DAILY DEV)", supplier: "EVA", price: "55" },
+{ isbn: "9780802424167", title: "EVA - WHAT IF JESUS WAS SERIOUS ABOUT PRAYE", supplier: "EVA", price: "55" },
+{ isbn: "9781433515002", title: "EVA - WHAT IS THE GOSPEL?", supplier: "EVA", price: "47" },
+{ isbn: "9781433543500", title: "EVA - WHO IS JESUS?", supplier: "EVA", price: "44" },
+{ isbn: "9781433562501", title: "RER - The Pilgrim's Progress", supplier: "RER", price: "72" },
+{ isbn: "9781629953878", title: "RER - Catching Foxes", supplier: "RER", price: "52" },
+{ isbn: "9781642894912", title: "RER - Christianity and Liberalism", supplier: "RER", price: "39" },
+{ isbn: "9781567696844", title: "RER - The Masculine Mandate", supplier: "RER", price: "43" },
+{ isbn: "9780875525952", title: "RER - Reasons of the Heart", supplier: "RER", price: "43" },
+{ isbn: "9780875520162", title: "RER - Christian Living in the Home", supplier: "RER", price: "44" },
+{ isbn: "9781629951287", title: "RER - Big Beliefs! Small Devotionals", supplier: "RER", price: "50" },
+{ isbn: "9780875521442", title: "RER - Called to the Ministry", supplier: "RER", price: "27" },
+{ isbn: "9781596381353", title: "RER - Gospel-Powered Parenting", supplier: "RER", price: "44" },
+{ isbn: "9781601788764", title: "RER - Teach Them to Work", supplier: "RER", price: "49" },
+{ isbn: "9781601784636", title: "RER - Living in a Godly Marriage", supplier: "RER", price: "53" },
+{ isbn: "9781433566530", title: "RER - Men and Women in the Church", supplier: "RER", price: "48" },
+{ isbn: "9781601782502", title: "RER - Building a Godly Home Vol. 3", supplier: "RER", price: "49" },
+{ isbn: "9781601782267", title: "RER - Building a Godly Home Vol. 1", supplier: "RER", price: "49" },
+{ isbn: "9781433503641", title: "RER - God Marriage and Family", supplier: "RER", price: "50" },
+{ isbn: "9781433593604", title: "RER - Parenting (Tripp)", supplier: "RER", price: "49" },
+{ isbn: "9781601781901", title: "RER - Lady Jane Grey - Christian Biographies for Young Readers", supplier: "RER", price: "52" },
+{ isbn: "9781601781512", title: "RER - Athanasius - Christian Biographies for Young Readers", supplier: "RER", price: "52" },
+{ isbn: "9781601783547", title: "RER - Jonathan Edwards - Christian Biographies for Young Readers", supplier: "RER", price: "52" },
+{ isbn: "9781601780553", title: "RER - John Calvin - Christian Biographies for Young Readers", supplier: "RER", price: "52" },
+{ isbn: "9781601784544", title: "RER - Martin Luther - Christian Biographies for Young Readers", supplier: "RER", price: "52" },
+{ isbn: "9781629959740", title: "RER - The Illustrated Westminster Shorter Catechism", supplier: "RER", price: "68" },
+{ isbn: "9781433578359", title: "RER - The King and the Dragon", supplier: "RER", price: "36" },
+{ isbn: "9781433571060", title: "RER - The Promise: The Amazing Story of Our Long-Awaited Savior", supplier: "RER", price: "34" },
+{ isbn: "9781433577888", title: "RER - Polly and the Screen Time Overload", supplier: "RER", price: "36" },
+{ isbn: "9781433581861", title: "RER - Meg Is Not Alone", supplier: "RER", price: "36" },
+{ isbn: "9781433568527", title: "RER - Arlo and the Great Big Cover-Up", supplier: "RER", price: "36" },
+{ isbn: "9781433584411", title: "RER - Lucy and the Saturday Surprise", supplier: "RER", price: "36" },
+{ isbn: "9781433563423", title: "CAN - ESV - Pew Bible, Hardcover, Black", supplier: "CAN", price: "39" },
+{ isbn: "9781433558412", title: "CAN - ESV - Economy Bible, Large Print, Paperback", supplier: "CAN", price: "28" },
+{ isbn: "9781906334673", title: "CAN - Listen Up: A Practical Guide to Listening to Sermons", supplier: "CAN", price: "7" },
+{ isbn: "9781845509231", title: "CAN - The Life of God in the Soul of the Church", supplier: "CAN", price: "43" },
+{ isbn: "9781433566387", title: "CAN - Created to Draw Near: Our Life as God's Royal Priests", supplier: "CAN", price: "57" },
+{ isbn: "9781433555978", title: "CAN - ESV - Value Thinline Bible, Large Print, Black, Imitation ", supplier: "CAN", price: "85" },
+{ isbn: "9781567698565", title: "CAN - Good News: The Gospel of Jesus Christ, Hardcover", supplier: "CAN", price: "49" },
+{ isbn: "9781845509828", title: "CAN - Persistently Preaching Christ: Fifty years of Bible minist", supplier: "CAN", price: "43" },
+{ isbn: "9781433502125", title: "CAN - 9Marks: What is a Healthy Church Member?, Hardcover", supplier: "CAN", price: "49" },
+{ isbn: "9781909611641", title: "CAN - Enjoy Your Prayer Life", supplier: "CAN", price: "13" },
+{ isbn: "9781783972173", title: "CAN - Do You Pray? a Question for Everybody", supplier: "CAN", price: "17" },
+{ isbn: "9780875522425", title: "CAN - Worship in Spirit and Truth: A Refreshing Study of the Pri", supplier: "CAN", price: "54" },
+{ isbn: "9781925424546", title: "CAN - Guidance and the Voice of God (2nd Edition): God's Living ", supplier: "CAN", price: "39" },
+{ isbn: "9781433587634", title: "CAN - 9Marks: Authority -How Godly Rule Protects the Vulnerable,", supplier: "CAN", price: "74" },
+{ isbn: "9780802824554", title: "CAN - Above All Earthly Powers", supplier: "CAN", price: "128" },
+{ isbn: "9781783596645", title: "CAN - COCT - The Last Things (Contours of Christian Theology Ser", supplier: "CAN", price: "92" },
+{ isbn: "9780851118925", title: "CAN - COCT - The Providence of God (Contours of Christian Theolo", supplier: "CAN", price: "92" },
+{ isbn: "9780851118963", title: "CAN - COCT - The Person of Christ (Contours of Christian Theolog", supplier: "CAN", price: "92" },
+{ isbn: "9780851118956", title: "CAN - COCT - The Holy Spirit (Contours of Christian Theology Ser", supplier: "CAN", price: "92" },
+{ isbn: "9780851118901", title: "CAN - COCT - The Doctrine of God (Contours of Christian Theology", supplier: "CAN", price: "92" },
+{ isbn: "9781629951867", title: "CAN - What about Free Will?: Reconciling Our Choices with God's ", supplier: "CAN", price: "79" },
+{ isbn: "9781844742073", title: "CAN - Words of Life", supplier: "CAN", price: "51" },
+{ isbn: "9780736917247", title: "CAN - Christianity According to the Bible (OP)", supplier: "CAN", price: "34" },
+{ isbn: "9781783594818", title: "CAN - Rediscovering Joy: The Dynamic Power of the Reformation in", supplier: "CAN", price: "30" },
+{ isbn: "9781433522307", title: "CAN - Welcome to the Story: Reading, Loving (bk)", supplier: "CAN", price: "39" },
+{ isbn: "9780664231637", title: "CAN - Covenant and Salvation : Union with Christ", supplier: "CAN", price: "126" },
+{ isbn: "9780802808578", title: "CAN - Saved by Grace", supplier: "CAN", price: "111" },
+{ isbn: "9780802875242", title: "CAN - The Courage to Be Protestant: Reformation Faith in Today's", supplier: "CAN", price: "96" },
+{ isbn: "9780802807472", title: "CAN - No Place for Truth: Or Whatever Happened to Evangelical Th", supplier: "CAN", price: "119" },
+{ isbn: "9780802807472", title: "CAN - No Place for Truth: Or Whatever Happened to Evangelical Th", supplier: "CAN", price: "119" },
+{ isbn: "9780802846723", title: "CAN - Losing Our Virtue: Why the Church Must Recover Its Moral V", supplier: "CAN", price: "101" },
+{ isbn: "9781848716308", title: "CAN - Knowing Christ", supplier: "CAN", price: "43" },
+{ isbn: "9780802864994", title: "CAN - Christianity and Liberalism", supplier: "CAN", price: "55" },
+{ isbn: "9780802876324", title: "CAN - Systematic Theology, Complete Edition", supplier: "CAN", price: "198" },
+{ isbn: "9781921441851", title: "CAN - Little Black Book - What's Life All About", supplier: "CAN", price: "15" },
+{ isbn: "9781921441769", title: "CAN - Little Black Book - Suffering & Evil", supplier: "CAN", price: "15" },
+{ isbn: "9781921441776", title: "CAN - Little Black Book - The Bible", supplier: "CAN", price: "15" },
+{ isbn: "9781922206121", title: "CAN - Little Black Book - Jesus", supplier: "CAN", price: "15" },
+{ isbn: "9781922206619", title: "CAN - Little Black Book - Life After Death", supplier: "CAN", price: "15" },
+{ isbn: "9781433585340", title: "CAN - Impossible Christianity: Why Following Jesus Does Not Mean", supplier: "CAN", price: "65" },
+{ isbn: "9781433580406", title: "CAN - Resurrection Hope and the Death of Death (Short Studies in", supplier: "CAN", price: "57" },
+{ isbn: "9781433549953", title: "CAN - Work and Our Labor in the Lord (Short Studies in Biblical ", supplier: "CAN", price: "47" },
+{ isbn: "9781433549991", title: "CAN - Covenant and God's Purpose for the World (Short Studies in", supplier: "CAN", price: "47" },
+{ isbn: "9781433555749", title: "CAN - The City of God and the Goal of Creation (Short Studies in", supplier: "CAN", price: "51" },
+{ isbn: "9781433566219", title: "CAN - Divine Blessing and the Fullness of Life in the Presence o", supplier: "CAN", price: "47" },
+{ isbn: "9781433556319", title: "CAN - The Son of God and the New Creation, Redesign (Short Studi", supplier: "CAN", price: "47" },
+{ isbn: "9781629951362", title: "CAN - Give Them Truth: Teaching Eternal Truths to Young Minds", supplier: "CAN", price: "51" },
+{ isbn: "9781875245819", title: "CAN - Growth Groups How to lead Disciple-making Small Groups", supplier: "CAN", price: "47" },
+{ isbn: "9781844740512", title: "CAN - Concise Theology: A Guide to Historic Christian Beliefs", supplier: "CAN", price: "60" },
+{ isbn: "9781844744985", title: "CAN - Evangelism & the Sovereignty of God", supplier: "CAN", price: "48" },
+{ isbn: "9780310414315", title: "CAN - Understanding the Bible, Expanded Edition", supplier: "CAN", price: "49" },
+{ isbn: "9781444790078", title: "CAN - I Believe In Preaching", supplier: "CAN", price: "47" },
+{ isbn: "9781844745623", title: "CAN - Christ-Centered Biblical Theology: Hermeneutical Foundatio", supplier: "CAN", price: "77" },
+{ isbn: "9781433541919", title: "CAN - God's Kingdom through God's Covenants: A", supplier: "CAN", price: "68" },
+{ isbn: "9781844743964", title: "CAN - NSBT - God the Peacemaker (New Studies in Biblical Theolog", supplier: "CAN", price: "92" },
+{ isbn: "9780851115108", title: "CAN - NSBT - Possessed by God (New Studies in Biblical Theology)", supplier: "CAN", price: "65" },
+{ isbn: "9781783591664", title: "CAN - NSBT - Covenant and Commandment (New Studies in Biblical T", supplier: "CAN", price: "65" },
+{ isbn: "9781783595440", title: "CAN - NSBT - Canon, Covenant and Christology (New Studies in Bib", supplier: "CAN", price: "92" },
+{ isbn: "9781783593064", title: "CAN - NSBT - Identity and Idolatry (New Studies in Biblical Theo", supplier: "CAN", price: "81" },
+{ isbn: "9781842270363", title: "CAN - The Goldsworthy Trilogy: Gospel & Kingdom, Gospel & Wisdom", supplier: "CAN", price: "77" },
+{ isbn: "9781433501166", title: "CAN - Roman Catholic Theology and Practice: An Evangelical Asses", supplier: "CAN", price: "111" },
+{ isbn: "9781781919118", title: "CAN - Read Mark Learn: Luke Vol 1, A Small Group Bible Study", supplier: "CAN", price: "51" },
+{ isbn: "9781527102095", title: "CAN - Read Mark Learn: Luke Vol 2, A Small Group Bible Study", supplier: "CAN", price: "51" },
+{ isbn: "9781848712423", title: "CAN - From the Mouth of God: Trusting, Reading, and Applying the", supplier: "CAN", price: "39" },
+{ isbn: "9781848716902", title: "CAN - Devoted to God: Blueprints for Sanctification", supplier: "CAN", price: "43" },
+{ isbn: "9781848712591", title: "CAN - The Christian Life: A Doctrinal Introduction", supplier: "CAN", price: "36" },
+{ isbn: "9781844744312", title: "CAN - Dig Deeper: Tools to Unearth the Bible's Treasure", supplier: "CAN", price: "51" },
+{ isbn: "9781629959238", title: "CAN - Defeating Evil: How God Glorifies Himself in a Dark World", supplier: "CAN", price: "79" },
+{ isbn: "9781433502781", title: "CAN - What's the Difference?: Manhood and Womanhood Defined Acco", supplier: "CAN", price: "28" },
+{ isbn: "9781941114582", title: "CAN - Preparing for Marriage: Help for Christian Couples, Revise", supplier: "CAN", price: "36" },
+{ isbn: "9780801013904", title: "CAN - The Gospel Commission: Recovering God's Strategy for Makin", supplier: "CAN", price: "68" },
+{ isbn: "9781844741557", title: "CAN - The Cross of Christ with Study Guide (20th Anniversary Edi", supplier: "CAN", price: "92" },
+{ isbn: "9781845504649", title: "CAN - Priority of Preaching (bk)", supplier: "CAN", price: "20" },
+{ isbn: "9780851513171", title: "CAN - Sketches from Church History: An Illustrated Account of 20", supplier: "CAN", price: "51" },
+{ isbn: "9786297740003", title: "CAN - Priscilla, Where Are You?: A Call to Joyful Theology", supplier: "CAN", price: "25" },
+{ isbn: "9786299950011", title: "CAN - 9Marks: What is a Healthy Church?", supplier: "CAN", price: "25" },
+{ isbn: "9781433511257", title: "CAN - Scandalous: The Cross and Resurrection of Jesus", supplier: "CAN", price: "60" },
+{ isbn: "9780801072284", title: "CAN - Out of Context (POD)", supplier: "CAN", price: "68" }
+        ];
+
+        // Disable autofocus for iOS
+        navigator.mediaDevices.getUserMedia({ video: { focusMode: "manual" } }).catch(() => {});
+
+        // Barcode scanning logic
+        codeReader.decodeFromVideoDevice(undefined, videoElement, (result, err) => {
+            if (result) {
+                let isbn = result.text;
+                if (!isbn.startsWith("978")) return; // Only process ISBNs starting with "978"
+                
+                latestISBNField.value = isbn; // Show latest detected barcode
+                if (!document.querySelector(`[data-isbn="${isbn}"]`)) {
+                    addBooksToTable(isbn);
+                }
+            }
+        });
+
+        // Add books to the table
+        async function addBooksToTable(isbn) {
+            if (document.querySelector(`[data-isbn="${isbn}"]`)) {
+                return; // Prevent duplicate entries
+            }
+            
+            let matchingBooks = isbnDataList.filter(book => book.isbn === isbn);
+            
+            if (matchingBooks.length === 0) {
+                alert(`ISBN ${isbn} not found.`);
+                return;
+            }
+
+            let coverImage = await fetchBookCover(isbn);
+            
+            matchingBooks.forEach(({ title, supplier, price }) => {
+                bookList.innerHTML += `
+                    <tr data-isbn="${isbn}">
+                        <td><img src="${coverImage}" alt="Cover"></td>
+                        <td>${title}</td>
+                        <td>${supplier}</td>
+                        <td>${isbn}</td>
+                        <td>${price}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        // Fetch book cover image from Google Books API
+        async function fetchBookCover(isbn) {
+            try {
+                let response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
+                let data = await response.json();
+                return data.totalItems > 0 ? data.items[0].volumeInfo.imageLinks?.thumbnail || "" : "";
+            } catch (error) {
+                console.error("Error fetching book cover:", error);
+                return "";
+            }
+        }
+
+        // Clear all scanned rows
+        clearBtn.addEventListener("click", () => {
+            bookList.innerHTML = "";
+            latestISBNField.value = "";
+        });
+    </script>
+</body>
+</html>
